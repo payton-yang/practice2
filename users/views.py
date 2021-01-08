@@ -11,11 +11,18 @@ import jwt
 # Create your views here.
 
 class UserList(APIView):
+
+    authentication_classes = ()
+
     def get(self, request):
         try:
             users = Users.objects.all()
         except Users.DoesNotExist:
             raise Http404
+            return Response({
+                "code":404,
+                "message":"User does not exist"
+            })
         user_list = []
         for user in users:
             user_list.append(
