@@ -36,7 +36,11 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'users',
+    'orders',
     'products',
+    'carts',
+    'cart_product',
+    'order_product',
     'rest_framework',
 ]
 
@@ -81,6 +85,10 @@ DATABASES = {
         'PASSWORD': 'admin',
         'HOST': '127.0.0.1',
         'PORT': '5432',
+        # 单元测试数据库
+        'TEST': {
+            'NAME': 'test',  # 测试过程中会生成名字为test的数据库,测试结束后Django会自动删除该数据库
+        }
     }
 }
 

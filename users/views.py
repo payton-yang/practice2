@@ -6,12 +6,13 @@ from .models import Users
 import json
 from django.http import Http404
 import jwt
+from util.status import update_dict
+import util.status as RESPONSE
 
 
 # Create your views here.
 
 class UserList(APIView):
-
     authentication_classes = ()
 
     def get(self, request):
@@ -19,10 +20,7 @@ class UserList(APIView):
             users = Users.objects.all()
         except Users.DoesNotExist:
             raise Http404
-            return Response({
-                "code":404,
-                "message":"User does not exist"
-            })
+            return Response(RESPONSE.FAILURE_NOT_EXIST)
         user_list = []
         for user in users:
             user_list.append(
@@ -32,7 +30,8 @@ class UserList(APIView):
                     'name': user.name,
                 }
             )
-        return Response(user_list)
+            success = update_dict(dict(list=user_list))
+        return Response(success)
 
     def post(self, request):
         data = request.data
@@ -43,32 +42,27 @@ class UserList(APIView):
         }
 
         try:
-            users = Users.objects.create(**param)
+            user = Users.objects.create(**param)
         except Exception:
             raise Http404
-
-        return Response(users.__str__())
+            return Response(RESPONSE.FAILURE_BAD)
+        success = update_dict(dict(userId=user.id))
+        return Response(success)
 
 
 class UserDetail(APIView):
     def put(self, request, pk):
         user = self.get_object(pk)
         data = request.data
-        param = {
-            'name': data.pop('name', None),
-            'email': data.pop('email', None),
-            'password': data.pop('password', None),
-        }
-        user.name = param.get('name', user.name)
-        user.email = param.get('email', user.email)
-        user.password = param.get('password', user.password)
-        user.save()
-        data = {
-            'email': user.email,
-            'name': user.name,
-            'password': user.password,
-        }
-        return Response(data)
+        token = data.get('token', None)
+        signature = token.split('.')[2] if token else None
+        password = data.get('password', None)
+        if signature == user.token and password:
+            user.password = password
+            user.save()
+            success = update_dict(dict())
+            return Response(success)
+        return Response(RESPONSE.FAILURE_BAD)
 
     def get(self, request, pk):
         user = self.get_object(pk)
@@ -77,19 +71,22 @@ class UserDetail(APIView):
             'name': user.name,
             'password': user.password,
         }
-        return Response(data)
+        success = update_dict(data)
+        return Response(success)
 
     def get_object(self, pk):
         try:
             return Users.objects.get(pk=pk)
         except Users.DoesNotExist:
             raise Http404
+            return Response(RESPONSE.FAILURE_NOT_EXIST)
 
     def delete(self, request, pk):
 
         user = self.get_object(pk)
+        success = update_dict(dict(userId=user.id))
         user.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(success)
 
 
 class Login(APIView):
@@ -99,9 +96,10 @@ class Login(APIView):
             user = Users.objects.get(email=data.get('email', None))
         except Users.DoesNotExist:
             raise Http404
+            return Response(RESPONSE.FAILURE_NOT_EXIST)
         if data.get('password', None) == user.password:
             payload = {
-                'name': user.name,
+                'user_id': user.id,
                 'email': user.email
             }
             jwt_token = {'token': jwt.encode(
@@ -110,5 +108,6 @@ class Login(APIView):
             signature = jwt_token['token'].split('.')[2]
             user.token = signature
             user.save()
-            return Response(jwt_token, status=status.HTTP_200_OK)
-        return Response(status=status.HTTP_404_NOT_FOUND)
+            success = update_dict(dict(jwt_token))
+            return Response(success)
+        return Response(RESPONSE.FAILURE_BAD)
