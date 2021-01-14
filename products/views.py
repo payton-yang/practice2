@@ -1,7 +1,11 @@
+import random
+
 from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+
+from service import products
 from .models import Products
 from util.status import update_dict
 import util.status as RESPONSE
@@ -18,15 +22,28 @@ class ProductList(APIView):
         return Response(success)
 
     def post(self, request):
-        data = request.data
-        if data['id']:
-            data.pop('id')
-        try:
-            product = Products.objects.create(**data)
-        except BaseException:
-            raise status.HTTP_400_BAD_REQUEST
-            return Response(FAILURE_BAD)
-        success = update_dict(dict(productId=product.id))
+        resp = products.Products.get_products(products.Products(), param=dict(limit=50))
+        data = resp['data']
+        count = int(data['meta']['pagination']['count'])
+        for index in range(count):
+            param = {
+                'name': data['data'][index]['name'],
+                'bc_product_id': data['data'][index]['id'],
+                'type': data['data'][index]['type'],
+                'price': data['data'][index]['price'],
+                'option_set_id': data['data'][index]['option_set_id'],
+                'date_modified': data['data'][index]['date_modified'],
+                'date_created': data['data'][index]['date_created'],
+                'sku': data['data'][index]['sku'],
+                'description': data['data'][index]['description'],
+                'quantity': random.randint(30, 1000),
+            }
+            try:
+                product = Products.objects.create(**param)
+            except BaseException:
+                raise status.HTTP_400_BAD_REQUEST
+                return Response(FAILURE_BAD)
+            success = update_dict(dict(productId=product.id))
         return Response(success)
 
 

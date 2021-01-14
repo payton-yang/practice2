@@ -11,7 +11,12 @@ class CartProduct(models.Model):
     quantity = models.IntegerField(default=0)
 
     def __str__(self):
-        return self.product_id
+        return {
+            'id': self.id,
+            'cart_id': self.product_id,
+            'user_id': self.user_id,
+            'quantity': self.quantity
+        }
 
     class Meta:
         db_table = 'cart_product'

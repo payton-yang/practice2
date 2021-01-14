@@ -41,7 +41,9 @@ INSTALLED_APPS = [
     'carts',
     'cart_product',
     'order_product',
+    'billing_address',
     'rest_framework',
+    'tasks',
 ]
 
 MIDDLEWARE = [
@@ -80,7 +82,7 @@ WSGI_APPLICATION = 'practice.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'practice',
+        'NAME': 'practice2',
         'USER': 'postgres',
         'PASSWORD': 'admin',
         'HOST': '127.0.0.1',
