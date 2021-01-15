@@ -45,30 +45,30 @@ class UserList(APIView):
             param = {
                 "addresses": [
                     {
-                        "address1": data[index].get('addresses', None).get('address1', None),
-                        "city": data[index].get('addresses', None).get('city', None),
-                        "country_code": data[index].get('addresses', None).get('country_code', None),
-                        "first_name": data[index].get('addresses', None).get('first_name', None),
-                        "last_name": data[index].get('addresses', None).get('last_name', None),
-                        "postal_code": data[index].get('addresses', None).get('postal_code', None),
-                        "state_or_province": data[index].get('addresses', None).get('state_or_province', None)
+                        "address1": item.get('addresses', None).get('address1', None),
+                        "city": item.get('addresses', None).get('city', None),
+                        "country_code": item.get('addresses', None).get('country_code', None),
+                        "first_name": item.get('addresses', None).get('first_name', None),
+                        "last_name": item.get('addresses', None).get('last_name', None),
+                        "postal_code": item.get('addresses', None).get('postal_code', None),
+                        "state_or_province": item.get('addresses', None).get('state_or_province', None)
                     }
                 ],
                 "authentication": {
-                    "force_password_reset": data[index].get('authentication', None).get('force_password_reset', None),
-                    "new_password": data[index].get('authentication', None).get('new_password', None)
+                    "force_password_reset": item.get('authentication', None).get('force_password_reset', None),
+                    "new_password": item.get('authentication', None).get('new_password', None)
                 },
-                "company": data[index].get('company', None),
-                "customer_group_id": data[index].get('customer_group_id', None),
-                "email": data[index].get('email', None),
-                "first_name": data[index].get('first_name', None),
-                "last_name": data[index].get('last_name', None),
-                "password": data[index].get('authentication', None).get('new_password', None),
-                "phone": data[index].get('phone', None)
+                "company": item.get('company', None),
+                "customer_group_id": item.get('customer_group_id', None),
+                "email": item.get('email', None),
+                "first_name": item.get('first_name', None),
+                "last_name": item.get('last_name', None),
+                "password": item.get('authentication', None).get('new_password', None),
+                "phone": item.get('phone', None)
             }
             try:
-                customer = customers.Customers.get_customer(customers.Customers(), data[index].get('email', None))
-                user = Users.objects.get(email=data[index].get('email', None))
+                customer = customers.Customers.get_customer(customers.Customers(), item.get('email', None))
+                user = Users.objects.get(email=item.get('email', None))
                 if customer.get('data') is None and user is None:
                     user = Users.objects.create(**param)
                     resp = customers.Customers.post_customers([param])
@@ -77,8 +77,8 @@ class UserList(APIView):
                     bc_id = resp.get('data').get('data')[0].get('id')
                     user.bc_id = bc_id
                     user.save()
-                    for index in range(len(param.get('address'))):
-                        BillingAddress.objects.create(**param.get('address')[index])
+                    for item in param.get('address'):
+                        BillingAddress.objects.create(**item)
                     success = update_dict(dict(userId=user.id))
                     return Response(success)
                 if customer.get('data') and user:
@@ -109,42 +109,16 @@ class UserList(APIView):
                     })
                 if customer.get('data') and user is None:
                     customer_param = {
-                        "addresses": [
-                            {
-                                "address1": customer.get('data').get('data').get('addresses', None).get('address1',
-                                                                                                        None),
-                                "city": customer.get('data').get('data').get('addresses', None).get('city', None),
-                                "country_code": customer.get('data').get('data').get('addresses', None).get(
-                                    'country_code', None),
-                                "first_name": customer.get('data').get('data').get('addresses', None).get('first_name',
-                                                                                                          None),
-                                "last_name": customer.get('data').get('data').get('addresses', None).get('last_name',
-                                                                                                         None),
-                                "postal_code": customer.get('data').get('data').get('addresses', None).get(
-                                    'postal_code', None),
-                                "state_or_province": customer.get('data').get('data').get('addresses', None).get(
-                                    'state_or_province', None)
-                            }
-                        ],
-                        "authentication": {
-                            "force_password_reset": customer.get('data').get('data').get('authentication', None).get(
-                                'force_password_reset',
-                                None),
-                            "new_password": customer.get('data').get('data').get('authentication', None).get(
-                                'new_password', None)
-                        },
                         "company": customer.get('data').get('data').get('company', None),
                         "customer_group_id": customer.get('data').get('data').get('customer_group_id', None),
                         "email": customer.get('data').get('data').get('email', None),
                         "first_name": customer.get('data').get('data').get('first_name', None),
                         "last_name": customer.get('data').get('data').get('last_name', None),
-                        "password": customer.get('data').get('data').get('authentication', None).get('new_password',
-                                                                                                     None),
                         "phone": customer.get('data').get('data').get('phone', None)
                     }
                     Users.objects.create(**customer_param)
-                    for index in range(len(customer_param.get('address'))):
-                        BillingAddress.objects.create(**customer_param.get('address')[index])
+                    for item in customer_param.get('address'):
+                        BillingAddress.objects.create(**item)
                     bc_id = customer.get('data').get('data')[0].get('id')
                     user.bc_id = bc_id
                     user.save()
