@@ -5,15 +5,17 @@ class Customers(BCModel):
     def post_customers(self, data: list):
         resp = self.post_method('/v3/customers', data)
         if resp is False:
-            result = {"code": "201", "data": {}}
+            result = False
         else:
-            result = {"code": "200", "data": resp}
+            result = resp
+
         return result
 
     def get_customer(self, email):
-        resp = self.get_method('/v3/customers', dict(email=email))
+        resp = self.get_method('/v3/customers', {'email:in': email})
         if resp is False:
-            result = {"code": "201", "data": {}}
+            result = False
         else:
-            result = {"code": "200", "data": resp}
+            result = resp
+
         return result

@@ -3,6 +3,8 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
+from service.addresses import Addresses
+from address.models import Address
 from billing_address.models import BillingAddress
 from service import customers
 from .models import Users
@@ -21,20 +23,12 @@ class UserList(APIView):
     def get(self, request):
         try:
             users = Users.objects.all()
-            from tasks.tasks import show_name
-            show_name.delay("111")
         except Users.DoesNotExist:
             raise Http404
             return Response(RESPONSE.FAILURE_NOT_EXIST)
         user_list = []
         for user in users:
-            user_list.append(
-                {
-                    'id': user.id,
-                    'email': user.email,
-                    'name': user.name,
-                }
-            )
+            user_list.append(user.__str__())
             success = update_dict(dict(list=user_list))
         return Response(success)
 
@@ -45,14 +39,14 @@ class UserList(APIView):
             param = {
                 "addresses": [
                     {
-                        "address1": item.get('addresses', None).get('address1', None),
-                        "city": item.get('addresses', None).get('city', None),
-                        "country_code": item.get('addresses', None).get('country_code', None),
-                        "first_name": item.get('addresses', None).get('first_name', None),
-                        "last_name": item.get('addresses', None).get('last_name', None),
-                        "postal_code": item.get('addresses', None).get('postal_code', None),
-                        "state_or_province": item.get('addresses', None).get('state_or_province', None)
-                    }
+                        "address1": address.get('address1', None),
+                        "city": address.get('city', None),
+                        "country_code": address.get('country_code', None),
+                        "first_name": address.get('first_name', None),
+                        "last_name": address.get('last_name', None),
+                        "postal_code": address.get('postal_code', None),
+                        "state_or_province": address.get('state_or_province', None)
+                    } for address in item.get('addresses')
                 ],
                 "authentication": {
                     "force_password_reset": item.get('authentication', None).get('force_password_reset', None),
@@ -66,69 +60,92 @@ class UserList(APIView):
                 "password": item.get('authentication', None).get('new_password', None),
                 "phone": item.get('phone', None)
             }
+            customer = customers.Customers.get_customer(customers.Customers(), email=item.get('email', None))
             try:
-                customer = customers.Customers.get_customer(customers.Customers(), item.get('email', None))
                 user = Users.objects.get(email=item.get('email', None))
-                if customer.get('data') is None and user is None:
-                    user = Users.objects.create(**param)
-                    resp = customers.Customers.post_customers([param])
-                    if resp.get('data') is None:
-                        Response(RESPONSE.FAILURE_BAD)
-                    bc_id = resp.get('data').get('data')[0].get('id')
-                    user.bc_id = bc_id
-                    user.save()
-                    for item in param.get('address'):
-                        BillingAddress.objects.create(**item)
-                    success = update_dict(dict(userId=user.id))
-                    return Response(success)
-                if customer.get('data') and user:
-                    return Response({
-                        'code': 405,
-                        'message': '用户已存在！'
-                    })
-                if customer.get('data') is None and user:
-                    user_param = {
-                        'first_name': user.first_name,
-                        'last_name': user.last_name,
-                        'email': user.email,
-                        'password': user.password,
-                        'token': user.token,
-                        'company': user.company,
-                        'customer_group_id': user.customer_group_id
-                    }
-                    param.update(user_param)
-                    resp = customers.Customers.post_customers([param])
-                    if resp.get('data') is None:
-                        Response(RESPONSE.FAILURE_BAD)
-                    bc_id = resp.get('data').get('data')[0].get('id')
-                    user.bc_id = bc_id
-                    user.save()
-                    return Response({
-                        'code': 405,
-                        'message': '用户已存在！'
-                    })
-                if customer.get('data') and user is None:
-                    customer_param = {
-                        "company": customer.get('data').get('data').get('company', None),
-                        "customer_group_id": customer.get('data').get('data').get('customer_group_id', None),
-                        "email": customer.get('data').get('data').get('email', None),
-                        "first_name": customer.get('data').get('data').get('first_name', None),
-                        "last_name": customer.get('data').get('data').get('last_name', None),
-                        "phone": customer.get('data').get('data').get('phone', None)
-                    }
-                    Users.objects.create(**customer_param)
-                    for item in customer_param.get('address'):
-                        BillingAddress.objects.create(**item)
-                    bc_id = customer.get('data').get('data')[0].get('id')
-                    user.bc_id = bc_id
-                    user.save()
-                    return Response({
-                        'code': 405,
-                        'message': '用户已存在！'
-                    })
-            except Exception:
-                raise Http404
-                return Response(RESPONSE.FAILURE_BAD)
+            except Users.DoesNotExist:
+                user = None
+            if not customer.get('data') and user is None:
+                resp = customers.Customers.post_customers(customers.Customers(), data=[param])
+                addresses = param.pop('addresses')
+                param.pop('authentication')
+                user = Users.objects.create(**param)
+                for address in addresses:
+                    address.update(dict(user_id=user))
+                    Address.objects.create(**address)
+                if not resp.get('data'):
+                    Response(RESPONSE.FAILURE_BAD)
+                bc_id = resp.get('data')[0].get('id')
+                user.bc_id = bc_id
+                user.save()
+                success = update_dict(dict(userId=user.id))
+                return Response(success)
+            if customer.get('data') and user:
+                return Response({
+                    'code': 405,
+                    'message': '用户已存在！'
+                })
+            if not customer.get('data') and user:
+                addresses = Address.objects.filter(user_id=user)
+                address_list = []
+                for address in addresses:
+                    tmp = address.__str__()
+                    tmp.pop('id')
+                    tmp.pop('user_id')
+                    address_list.append(tmp)
+                customer_param = {
+                    "addresses": address_list,
+                    "authentication": {
+                        "force_password_reset": True,
+                        "new_password": user.password
+                    },
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'email': user.email,
+                    'company': user.company,
+                    'customer_group_id': user.customer_group_id,
+                    "phone": item.get('phone', None)
+                }
+                resp = customers.Customers.post_customers(customers.Customers(), data=[customer_param])
+                if not resp.get('data'):
+                    Response(RESPONSE.FAILURE_BAD)
+                bc_id = resp.get('data')[0].get('id')
+                user.bc_id = bc_id
+                user.save()
+                return Response({
+                    'code': 405,
+                    'bc_id': bc_id,
+                    'message': '用户已存在！'
+                })
+            if customer.get('data') and user is None:
+                user_param = {
+                    "company": customer.get('data')[0].get('company', None),
+                    "customer_group_id": customer.get('data')[0].get('customer_group_id', None),
+                    "email": customer.get('data')[0].get('email', None),
+                    "first_name": customer.get('data')[0].get('first_name', None),
+                    "last_name": customer.get('data')[0].get('last_name', None),
+                    "phone": customer.get('data')[0].get('phone', None),
+                    "bc_id": customer.get('data')[0].get('id', None)
+                }
+                user = Users.objects.create(**user_param)
+                addresses = Addresses.get_customer_addresses(Addresses(),
+                                                             customer_id=customer.get('data')[0].get('id', None))
+                for item in addresses.get('data'):
+                    item.pop('address_type')
+                    item.pop('country')
+                    item.pop('id')
+                    item.pop('customer_id')
+                    item.pop('phone')
+                    item.update({'user_id': user})
+                    Address.objects.create(**item)
+                bc_id = customer.get('data')[0].get('id')
+                user.bc_id = bc_id
+                user.save()
+                return Response({
+                    'code': 405,
+                    'id': user.id,
+                    'message': '用户已存在！'
+                })
 
 
 class UserDetail(APIView):

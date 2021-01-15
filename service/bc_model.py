@@ -23,7 +23,7 @@ class BCModel:
 
     def post_method(self, uri, data):
         url = f'{self.endpoint}{uri}'
-        resp = requests.post(url, data=json.dumps(data), headers=self.header)
+        resp = requests.post(url, data=json.dumps(data), headers=self.headers)
         if resp.status_code == 200:
             result = resp.json()
         else:
