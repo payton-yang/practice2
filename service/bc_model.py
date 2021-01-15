@@ -30,8 +30,14 @@ class BCModel:
             result = False
         return result
 
-    def put_method(self):
-        pass
+    def put_method(self, uri, data):
+        url = f'{self.endpoint}{uri}'
+        resp = requests.put(url, data=json.dumps(data), headers=self.headers)
+        if resp.status_code == 200:
+            result = resp.json()
+        else:
+            result = False
+        return result
 
     def delete_method(self):
         pass

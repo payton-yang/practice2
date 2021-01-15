@@ -158,6 +158,16 @@ class UserDetail(APIView):
         if signature == user.token and password:
             user.password = password
             user.save()
+            pwd = [
+                {
+                    "id": 7870,
+                    "authentication": {
+                        "force_password_reset": True,
+                        "new_password": password
+                    }
+                }
+            ]
+            customers.Customers.update_pwd(customers.Customers(), pwd)
             success = update_dict(dict())
             return Response(success)
         return Response(RESPONSE.FAILURE_BAD)
@@ -208,3 +218,15 @@ class Login(APIView):
             success = update_dict(dict(jwt_token))
             return Response(success)
         return Response(RESPONSE.FAILURE_BAD)
+
+
+class ValidatePwd(APIView):
+    def post(self, request):
+        data = request.data
+        resp = customers.Customers.validate_pwd(customers.Customers(), customer_id=data.get('customer_id'),
+                                                data={'password': data.get('password')})
+
+        return Response({
+            'code': 200,
+            'message': resp.get('success')
+        })
