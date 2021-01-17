@@ -23,7 +23,7 @@ class ProductList(APIView):
 
     def post(self, request):
         resp = products.Products.get_products(products.Products(), param=dict(limit=50))
-        data = resp['data']
+        data = resp
         count = int(data['meta']['pagination']['count'])
         for index in range(count):
             param = {

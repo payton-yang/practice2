@@ -28,7 +28,10 @@ urlpatterns = [
     path('validate/', user_view.ValidatePwd.as_view()),
     path('products/', product_view.ProductList.as_view()),
     path('products/<int:pk>/', product_view.ProductDetail.as_view()),
+    path('carts/', cart_view.Cart.as_view()),
     path('carts/<int:pk>/', cart_view.CartDetail.as_view()),
+    path('carts/<int:cart_id>/items/', cart_view.CartDetail.as_view()),
+    path('carts/<int:cart_id>/items/<int:item_id>/', cart_view.CartDetail.as_view()),
     path('orders/', order_view.Order.as_view()),
 
 ]

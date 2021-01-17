@@ -13,8 +13,8 @@ class CartProduct(models.Model):
     def __str__(self):
         return {
             'id': self.id,
-            'cart_id': self.product_id,
-            'user_id': self.user_id,
+            'cart_id': self.cart_id,
+            'product_id': self.product_id,
             'quantity': self.quantity
         }
 
