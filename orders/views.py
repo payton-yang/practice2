@@ -53,36 +53,37 @@ class Order(APIView):
         signature = token.split('.')[2]
         user_id = jwt_decode['user_id']
         user = Users.objects.get(id=user_id)
-
-        if signature == user.token and user and product_list and billing_address:
-            _billing_address = BillingAddress.objects.create(**billing_address)
-            param = {
-                'user_id': user,
-                'status': '1'
-            }
-            order = Orders.objects.create(**param)
-            products = []
-            for item in product_list:
-                product = Products.objects.get(bc_product_id=item.get('product_id'))
-                order_product = {
-                    'order_id': order,
-                    'product_id': product,
-                    'billing_address_id': _billing_address,
-                    'quantity': item.get('quantity', None)
+        try:
+            if signature == user.token and user and product_list and billing_address:
+                _billing_address = BillingAddress.objects.create(**billing_address)
+                param = {
+                    'user_id': user,
+                    'status': '1'
                 }
-                OrderProduct.objects.create(**order_product)
-                products.append({'name': product.name,
-                                 'quantity': item.get('quantity', None),
-                                 'price_ex_tax': product.price,
-                                 'price_inc_tax': product.price})
-            bc_order = {
-                'billing_address': billing_address,
-                'products': products
-            }
-            resp = orders.Orders.post_order(orders.Orders(), bc_order)
-            if resp:
-                order.bc_order_id = resp.get('id')
-                order.save()
-                success = update_dict(dict(orderId=order.id))
-                return Response(success)
-        return Response(RESPONSE.FAILURE_BAD)
+                order = Orders.objects.create(**param)
+                products = []
+                for item in product_list:
+                    product = Products.objects.get(bc_product_id=item.get('product_id'))
+                    order_product = {
+                        'order_id': order,
+                        'product_id': product,
+                        'billing_address_id': _billing_address,
+                        'quantity': item.get('quantity', None)
+                    }
+                    OrderProduct.objects.create(**order_product)
+                    products.append({'name': product.name,
+                                     'quantity': item.get('quantity', None),
+                                     'price_ex_tax': product.price,
+                                     'price_inc_tax': product.price})
+                bc_order = {
+                    'billing_address': billing_address,
+                    'products': products
+                }
+                resp = orders.Orders.post_order(orders.Orders(), bc_order)
+                if resp:
+                    order.bc_order_id = resp.get('id')
+                    order.save()
+                    success = update_dict(dict(order_id=order.id, bc_order_id=resp.get('id')))
+                    return Response(success)
+        except Exception:
+            return Response(RESPONSE.FAILURE_BAD)

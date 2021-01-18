@@ -39,17 +39,20 @@ class Cart(APIView):
             cart = Carts.objects.create(**param)
             for item in product_list:
                 product = Products.objects.get(bc_product_id=item.get('product_id', None))
-                _cart_product = {
-                    'cart_id': cart,
-                    'product_id': product,
-                    'quantity': item.get('quantity', None),
-                }
-                product.quantity -= item.get('quantity')
-                product.save()
-                CartProduct.objects.create(**_cart_product)
+                item_list = resp.get('data').get('line_items').get('physical_items')
+                for physical_item in item_list:
+                    _cart_product = {
+                        'cart_id': cart,
+                        'product_id': product,
+                        'bc_item_id': physical_item.get('id'),
+                        'quantity': item.get('quantity', None),
+                    }
+                    product.quantity -= item.get('quantity')
+                    product.save()
+                    CartProduct.objects.create(**_cart_product)
                 cart.bc_cart_id = resp.get('data').get('id')
                 cart.save()
-            success = update_dict(dict(cartId=cart.id))
+            success = update_dict(dict(cart_id=cart.id, bc_cart_id=resp.get('data').get('id')))
             return Response(success)
         return Response(status.HTTP_400_BAD_REQUEST)
 
@@ -67,34 +70,36 @@ class CartDetail(APIView):
         try:
             user = Users.objects.get(id=user_id)
         except Users.DoesNotExist:
-            raise status.HTTP_404_NOT_FOUND
             return Response(RESPONSE.FAILURE_NOT_EXIST)
-        if signature == user.token and user and line_item:
-            cart = Carts.objects.get(pk=pk)
-            product = Products.objects.get(bc_product_id=line_item.get('product_id', None))
-            try:
-                cart_product = CartProduct.objects.get(cart_id=cart.id, product_id=product.id)
-            except CartProduct.DoesNotExist:
-                cart_product = None
-            if cart_product:
-                product.quantity += cart_product.quantity
-                cart_product.quantity = line_item.get('quantity')
-                product.quantity -= line_item.get('quantity')
-                cart_product.save()
-                product.save()
-            else:
-                return Response(RESPONSE.FAILURE_BAD)
-            bc_param = {
-                "line_item": line_item
-            }
-            get_cart = carts.Carts.get_cart_items(carts.Carts(), cart.bc_cart_id)
-            item_list = get_cart.get('data').get('line_items').get('physical_items')
-            for item in item_list:
-                carts.Carts.put_cart_items(carts.Carts(), bc_cart_id=cart.bc_cart_id, item_id=item.get('id'),
+        try:
+            if signature == user.token and user and line_item:
+                cart = Carts.objects.get(pk=pk)
+                product = Products.objects.get(bc_product_id=line_item.get('product_id', None))
+                try:
+                    cart_product = CartProduct.objects.get(cart_id=pk, bc_item_id=line_item.get('item_id'))
+                except CartProduct.DoesNotExist:
+                    cart_product = None
+                if cart_product:
+                    product.quantity += cart_product.quantity
+                    cart_product.quantity = line_item.get('quantity')
+                    product.quantity -= line_item.get('quantity')
+                    cart_product.save()
+                    product.save()
+                else:
+                    return Response(RESPONSE.FAILURE_BAD)
+                bc_param = {
+                    "line_item": {
+                        "quantity": line_item.get('quantity'),
+                        "product_id": line_item.get('product_id'),
+                    }
+                }
+                carts.Carts.put_cart_items(carts.Carts(), bc_cart_id=line_item.get('product_id'),
+                                           item_id=line_item.get('item_id'),
                                            data=bc_param)
-            success = update_dict(dict(cartId=cart.id))
-            return Response(success)
-        return Response(status.HTTP_400_BAD_REQUEST)
+                success = update_dict(dict(cartId=cart.id))
+                return Response(success)
+        except Exception:
+            return Response(RESPONSE.FAILURE_BAD)
 
     def post(self, request, cart_id):
         data = request.data
@@ -106,24 +111,28 @@ class CartDetail(APIView):
         try:
             user = Users.objects.get(id=user_id)
         except Users.DoesNotExist:
-            raise status.HTTP_404_NOT_FOUND
             return Response(RESPONSE.FAILURE_NOT_EXIST)
         if signature == user.token and user and line_items:
             cart = Carts.objects.get(id=cart_id)
-            data.pop('token')
-            resp = carts.Carts.add_cart_items(carts.Carts(), cart.bc_cart_id, data)
             for item in line_items:
+                bc_cart = {
+                    'line_items': [item],
+                    'gift_certificates': data.get('gift_certificates')
+                }
+                resp = carts.Carts.add_cart_items(carts.Carts(), cart.bc_cart_id, bc_cart)
                 product = Products.objects.get(bc_product_id=item.get('product_id'))
                 param = {
                     'cart_id': cart,
                     'product_id': product,
+                    'bc_item_id': resp.get('data').get('line_items').get('physical_items')[0].get('id'),
                     'quantity': item.get('quantity')
                 }
                 cart_product = CartProduct.objects.create(**param)
             if resp and cart_product:
                 return Response({
                     'code': 200,
-                    'message': 'success'
+                    'message': 'success',
+                    'bc_cart_id': cart.bc_cart_id
                 })
 
     def delete(self, request, cart_id, item_id):
@@ -135,11 +144,12 @@ class CartDetail(APIView):
         try:
             user = Users.objects.get(id=user_id)
         except Users.DoesNotExist:
-            raise status.HTTP_404_NOT_FOUND
             return Response(RESPONSE.FAILURE_NOT_EXIST)
         if signature == user.token and user:
-            product = Products.objects.get(bc_product_id=item_id)
-            cart_product = CartProduct.objects.get(cart_id=cart_id, product_id=product.id)
+            cart_product = CartProduct.objects.get(cart_id=cart_id, bc_item_id=item_id)
+            product = Products.objects.get(id=cart_product.product_id.__str__().get('id'))
+            product.quantity += cart_product.quantity
+            product.save()
             cart_product.delete()
             cart = Carts.objects.get(id=cart_id)
             resp = carts.Carts.delete_cart_items(carts.Carts(), cart.bc_cart_id, item_id)

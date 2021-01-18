@@ -78,7 +78,7 @@ class UserList(APIView):
                 bc_id = resp.get('data')[0].get('id')
                 user.bc_id = bc_id
                 user.save()
-                success = update_dict(dict(userId=user.id))
+                success = update_dict(dict(user_id=user.id, bc_id=bc_id))
                 return Response(success)
             if customer.get('data') and user:
                 return Response({
