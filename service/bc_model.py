@@ -44,6 +44,8 @@ class BCModel:
         resp = requests.delete(url, headers=self.headers)
         if resp.status_code == 200:
             result = resp.json()
+        elif resp.status_code == 204:
+            result = ''
         else:
             result = False
         return result

@@ -160,7 +160,7 @@ class UserDetail(APIView):
             user.save()
             pwd = [
                 {
-                    "id": 7870,
+                    "id": user.bc_id,
                     "authentication": {
                         "force_password_reset": True,
                         "new_password": password
