@@ -23,15 +23,29 @@ class BCModel:
 
     def post_method(self, uri, data):
         url = f'{self.endpoint}{uri}'
-        resp = requests.post(url, data=json.dumps(data), headers=self.header)
+        resp = requests.post(url, data=json.dumps(data), headers=self.headers)
+        if resp.status_code in (200, 201):
+            result = resp.json()
+        else:
+            result = False
+        return result
+
+    def put_method(self, uri, data):
+        url = f'{self.endpoint}{uri}'
+        resp = requests.put(url, data=json.dumps(data), headers=self.headers)
         if resp.status_code == 200:
             result = resp.json()
         else:
             result = False
         return result
 
-    def put_method(self):
-        pass
-
-    def delete_method(self):
-        pass
+    def delete_method(self, uri):
+        url = f'{self.endpoint}{uri}'
+        resp = requests.delete(url, headers=self.headers)
+        if resp.status_code == 200:
+            result = resp.json()
+        elif resp.status_code == 204:
+            result = ''
+        else:
+            result = False
+        return result

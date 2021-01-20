@@ -6,8 +6,9 @@ from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.response import Response
 import jwt
-
+from service import orders
 # Create your views here.
+from billing_address.models import BillingAddress
 from order_product.models import OrderProduct
 from orders.models import Orders
 from products.models import Products
@@ -32,23 +33,13 @@ class Order(APIView):
                 products = OrderProduct.objects.filter(order_id=order.id)
                 for product in products:
                     product_list.append(
-                        {
-                            'id': product.__str__().id,
-                            'name': product.__str__().name,
-                            'type': product.__str__().type,
-                            'quantity': product.quantity,
-                            'color': product.__str__().color
-                        }
+                        product.__str__().get('product_id').__str__()
                     )
-                order_list.append(
-                    {
-                        'orderId': order.id,
-                        'uuid': order.uuid,
-                        'create_time': order.create_time,
-                        'status': order.status,
-                        'product': product_list
-                    }
-                )
+                tmp = order.__str__()
+                user_id = tmp.get('user_id').id
+                tmp.update({'user_id': user_id})
+                tmp.update({'products': product_list})
+                order_list.append(tmp)
             success = update_dict(dict(list=order_list))
             return Response(success)
         return Response(RESPONSE.FAILURE_BAD)
@@ -56,32 +47,43 @@ class Order(APIView):
     def post(self, request):
         data = request.data
         token = data.get('token', None)
+        billing_address = data.get('billing_address', None)
         product_list = data.get('list', None)
         jwt_decode = jwt.decode(token, "SECRET_KEY", algorithms='HS256')
         signature = token.split('.')[2]
         user_id = jwt_decode['user_id']
         user = Users.objects.get(id=user_id)
-
-        if signature == user.token and user and product_list:
-            param = {
-                'user_id': user,
-                'status': '1',
-                'uuid': uuid.uuid1(),
-                'create_time': datetime.now()
-            }
-
-            order = Orders.objects.create(**param)
-            for item in product_list:
-                product_id = item.get('productId', None)
-                product = Products.objects.get(id=product_id)
-                order_product = {
-                    'order_id': order,
-                    'product_id': product,
-                    'quantity': item.get('quantity', None)
+        try:
+            if signature == user.token and user and product_list and billing_address:
+                _billing_address = BillingAddress.objects.create(**billing_address)
+                param = {
+                    'user_id': user,
+                    'status': '1'
                 }
-                product.quantity -= item.get('quantity', 0)
-                product.save()
-                OrderProduct.objects.create(**order_product)
-            success = update_dict(dict(orderId=order.id))
-            return Response(success)
-        return Response(RESPONSE.FAILURE_BAD)
+                order = Orders.objects.create(**param)
+                products = []
+                for item in product_list:
+                    product = Products.objects.get(bc_product_id=item.get('product_id'))
+                    order_product = {
+                        'order_id': order,
+                        'product_id': product,
+                        'billing_address_id': _billing_address,
+                        'quantity': item.get('quantity', None)
+                    }
+                    OrderProduct.objects.create(**order_product)
+                    products.append({'name': product.name,
+                                     'quantity': item.get('quantity', None),
+                                     'price_ex_tax': product.price,
+                                     'price_inc_tax': product.price})
+                bc_order = {
+                    'billing_address': billing_address,
+                    'products': products
+                }
+                resp = orders.Orders.post_order(orders.Orders(), bc_order)
+                if resp:
+                    order.bc_order_id = resp.get('id')
+                    order.save()
+                    success = update_dict(dict(order_id=order.id, bc_order_id=resp.get('id')))
+                    return Response(success)
+        except Exception:
+            return Response(RESPONSE.FAILURE_BAD)

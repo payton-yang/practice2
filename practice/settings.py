@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'carts',
     'cart_product',
     'order_product',
+    'address',
     'billing_address',
     'rest_framework',
     'tasks',

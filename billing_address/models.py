@@ -14,7 +14,6 @@ class BillingAddress(models.Model):
     country = models.CharField(max_length=200)
     country_iso2 = models.CharField(max_length=20)
     email = models.CharField(max_length=200)
-    user_id = models.ForeignKey(Users, on_delete=models.DO_NOTHING)
 
     def __str__(self):
         return {
@@ -27,7 +26,6 @@ class BillingAddress(models.Model):
             "zip": self.zip,
             "country": self.country,
             "country_iso2": self.country_iso2,
-            "user_id": self.user_id,
             "email": self.email
         }
 

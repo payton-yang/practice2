@@ -10,8 +10,8 @@ class Orders(models.Model):
     create_time = models.DateTimeField(null=True, blank=True)
     user_id = models.ForeignKey(Users, on_delete=models.DO_NOTHING)
     status = models.CharField(max_length=20)
-    total_ex_tax = models.IntegerField()
-    total_inc_tax = models.IntegerField()
+    total_ex_tax = models.IntegerField(null=True, blank=True)
+    total_inc_tax = models.IntegerField(null=True, blank=True)
     bc_order_id = models.IntegerField(null=True, blank=True)
 
     def __str__(self):

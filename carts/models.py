@@ -7,7 +7,7 @@ class Carts(models.Model):
     create_time = models.DateTimeField(null=True, blank=True)
     user_id = models.ForeignKey(Users, on_delete=models.DO_NOTHING)
     status = models.CharField(max_length=20, default='')
-    bc_cart_id = models.IntegerField(null=True, blank=True)
+    bc_cart_id = models.CharField(null=True, blank=True, max_length=200)
 
     def __str__(self):
         return {
